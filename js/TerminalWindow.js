@@ -3,26 +3,39 @@ var TerminalWindow = (function (){
   var currentDirectory = '';
   var currentPrompt = 'toms-terminal:' + currentDirectory + '$';
   var mainObj = this;
+  var blink = false;
+  var focused = false;
 
-  var fileSystem = {
-    file1: '1stfile',
-    file2: 'filfhfh',
-    file3: 'xfthfxt',
-    file4: 'rurssh',
-    directory1: {
-      nestedFile: 'nestedFile'
-    },
-  };
+var blinkCursor = function (){
+    setTimeout(function () {
+      if (blink && focused) {
+        console.log(inputField.onfocus)
+        mainObj.cursor.style.display = mainObj.cursor.style.display === 'none' ? 'inline' : 'none'
+        blinkCursor();
+      } else {
+        mainObj.cursor.style.display = 'none';
+      }
+    }, 500);
+  }
+
+  var fileSystem = [
+    'justFile.txt',
+    'something_cool.txt',
+    {directory1: 'nestedFile'}
+  ];
 
   var functionObject = {
     help: (function(output){
-      output.innerHTML= "Currently working commands are: <br>ls: list all files and directories in current working directory <br>pwd: print working directory <br>clear: Clears terminal window";
+      output.innerHTML= "Currently working commands are: <br><br>" + (Object.keys(functionObject)).join("<br>");
     }),
     ls: function(output){
       let items = '';
-      let fileItems = Object.keys(fileSystem);
-      for(var i in fileItems){
-          items += fileItems[i] + '<br>';
+      for(var i in fileSystem){
+        if (typeof fileSystem[i] === 'object') {
+          items += Object.keys(fileSystem[i]) + '<br>';
+        } else {
+          items += fileSystem[i] + '<br>';
+        }
       }
       output.innerHTML = items;
     },
@@ -31,6 +44,42 @@ var TerminalWindow = (function (){
     },
     clear: function(){
       mainObj.results.innerHTML= '';
+    },
+    toggle: function(){
+      if (mainObj.main.style.background === 'black') {
+        mainObj.setBackgroundColor('white');
+        mainObj.setFontColor('black');
+        mainObj.cursor.style.background = 'black';
+      } else {
+        mainObj.setBackgroundColor('black');
+        mainObj.setFontColor('white');
+        mainObj.cursor.style.background = 'white';
+      }
+    },
+    blink: function(){
+      blink = blink === true ? false : true;
+      blinkCursor();
+    },
+    echo: function(output, input){
+      input.shift();
+      let outputStr = input.join(" ");
+      output.innerHTML = outputStr;
+    },
+    touch: function(output, input){
+      console.log(input.length);
+      if (input.length !== 2) {
+        output.innerHTML = "Invalid filename";
+      } else {
+        fileSystem.push(input[1]);
+      }
+    },
+    rm: function(output, input){
+      if (input.length !== 2 || fileSystem.indexOf(input[1]) === -1) {
+        output.innerHTML = "Invalid filename";
+      } else {
+        let index = fileSystem.indexOf(input[1]);
+        fileSystem.splice(index, 1);
+      }
     }
   };
 
@@ -39,6 +88,7 @@ var TerminalWindow = (function (){
 
 
   this.innerWindow = document.createElement('div');
+  this.innerWindow.className = 'innerWindow';
   this.results = document.createElement('div');
   this.results.innerHTML = 'Welcome to the terminal window. <br> Please type "help" for a list of commands. <br><br>'
   this.prompt = document.createElement('span');
@@ -53,7 +103,7 @@ var TerminalWindow = (function (){
 
   this.prompt.innerHTML = currentPrompt;
 
-  this.cursor.style.background = 'white';
+
 
   this.innerWindow.appendChild(this.results);
   this.innerWindow.appendChild(this.prompt);
@@ -62,12 +112,16 @@ var TerminalWindow = (function (){
   this.innerWindow.appendChild(inputField);
 
   this.main.appendChild(this.innerWindow);
+  blinkCursor();
+
 
   inputField.onblur = function() {
+    focused = false;
     mainObj.cursor.style.display = 'none'
   }
 
   inputField.onfocus = function() {
+    focused = true;
     inputField.value = mainObj.input.textContent
     mainObj.cursor.style.display = 'inline'
   }
@@ -89,27 +143,53 @@ var TerminalWindow = (function (){
 
   inputField.onkeyup = function(e) {
     if (e.which === 13) {
-      let inputValue = inputField.value;
-      var newResult = document.createElement('pre')
-			newResult.innerHTML = currentPrompt + inputValue;
-			mainObj.results.appendChild(newResult);
-      inputField.value = "";
-      mainObj.input.textContent = "";
+        let inputValue = inputField.value;
+        let splitStr = inputValue.split(" ");
 
-      checkFunction(inputValue);
-    }
+        var newResult = document.createElement('pre')
+  			newResult.innerHTML = currentPrompt + inputValue;
+  			mainObj.results.appendChild(newResult);
+        inputField.value = "";
+        mainObj.input.textContent = "";
+
+        checkFunction(splitStr);
+        scrollDown();
+      }
   }
 
   checkFunction = function(input) {
     var newOutput = document.createElement('pre');
-    if (functionObject[input]) {
-      functionObject[input](newOutput);
-      mainObj.results.appendChild(newOutput);
-    } else {
-      newOutput.innerHTML = '-bash: ' + input + ': command not found';
-      mainObj.results.appendChild(newOutput);
+    functionObject[input[0]] ? functionObject[input[0]](newOutput, input) : returnError(newOutput, input);
+
+    mainObj.results.appendChild(newOutput);
+  }
+
+  returnError = function(output, input){
+    if (input[0] !== "") {
+      output.innerHTML = '-bash: ' + input + ': command not found';
+      mainObj.results.appendChild(output);
     }
   }
+
+  scrollDown = function(){
+    mainObj.main.scrollTop = mainObj.main.scrollHeight;
+  }
+
+  Object.byString = function(o, s) {
+    s = s.replace(/\[(\w+)\]/g, '.$1'); // convert indexes to properties
+    s = s.replace(/^\./, '');           // strip a leading dot
+    console.log(s);
+    var a = s.split('.');
+    for (var i = 0, n = a.length; i < n; ++i) {
+        var k = a[i];
+        if (k in o) {
+            o = o[k];
+        } else {
+            return;
+        }
+    }
+    return o;
+}
 
   this.setWidth = function(width){
     this.main.style.width = width;
@@ -120,12 +200,12 @@ var TerminalWindow = (function (){
   this.setBackgroundColor = function(color){
     this.main.style.background = color;
   }
+  this.setFontColor = function(color){
+    this.main.style.color = color;
+    this.cursor.style.background = color;
+  }
 
-
-
-  this.main.style.color = 'white';
   this.main.style.fontFamily = 'monospace', 'Monaco, Courier';
   this.main.style.fontSize = '12px';
-  mainObj.cursor.style.display = 'none'
-
+  mainObj.cursor.style.display = 'none';
 })

@@ -1,5 +1,5 @@
 body {
-  margin: 0;
+  margin: 10px;
 }
 .cursor-hidden {
   visibility: hidden;
@@ -10,4 +10,8 @@ div {
 pre {
   padding-top: 3px;
   margin: 0px;
+}
+.Terminal {
+  box-shadow: 0 0 10px 0px rgb(0, 0, 0);
+  overflow-y: scroll;
 }
